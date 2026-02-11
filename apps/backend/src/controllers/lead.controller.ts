@@ -25,7 +25,7 @@ export class LeadController {
         }
       });
 
-      res.json({ leads });
+      res.json(leads);
     } catch (error) {
       next(error);
     }
@@ -63,7 +63,7 @@ export class LeadController {
         throw new AppError('Lead não encontrado', 404);
       }
 
-      res.json({ lead });
+      res.json(lead);
     } catch (error) {
       next(error);
     }
@@ -82,7 +82,7 @@ export class LeadController {
         }
       });
 
-      res.status(201).json({ lead });
+      res.status(201).json(lead);
     } catch (error) {
       next(error);
     }
@@ -98,7 +98,7 @@ export class LeadController {
         data
       });
 
-      res.json({ lead });
+      res.json(lead);
     } catch (error) {
       next(error);
     }
