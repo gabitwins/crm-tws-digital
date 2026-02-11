@@ -110,7 +110,7 @@ router.get('/', authenticate, async (req: Request, res: Response) => {
             lead: {
               currentQueue: queueType as any
             },
-            status: 'APPROVED'
+            status: 'APPROVED' as any
           }
         });
 

@@ -101,7 +101,7 @@ router.get('/stats', authenticate, async (req: Request, res: Response) => {
     const totalLeads = await prisma.lead.count();
     const totalVendas = await prisma.sale.count({
       where: { 
-        status: 'APPROVED' 
+        status: 'APPROVED' as any
       }
     });
     const taxaConversao = totalLeads > 0 ? (totalVendas / totalLeads) * 100 : 0;
