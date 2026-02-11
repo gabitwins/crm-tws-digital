@@ -63,7 +63,7 @@ export function CollaboratorsSection() {
       setInviteLink(response.data.inviteLink);
       loadCollaborators();
       
-      // Resetar form após 3 segundos mostrando o link
+      // Resetar form após 10 segundos mostrando o link
       setTimeout(() => {
         setInviteEmail('');
         setInviteName('');
@@ -71,7 +71,8 @@ export function CollaboratorsSection() {
         setInviteLink('');
       }, 10000);
     } catch (error: any) {
-      alert(error.response?.data?.error || 'Erro ao enviar convite');
+      console.error('Erro detalhado:', error.response?.data);
+      alert(error.response?.data?.error || 'Erro ao enviar convite. Verifique se o e-mail já está cadastrado.');
     } finally {
       setLoading(false);
     }

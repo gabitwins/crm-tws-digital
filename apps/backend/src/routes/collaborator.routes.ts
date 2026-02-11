@@ -37,7 +37,8 @@ router.get('/', authenticate, async (req, res) => {
 router.post('/invite', authenticate, async (req, res) => {
   try {
     const { email, name, role } = req.body;
-    const userId = (req as any).user.userId;
+    // @ts-ignore
+    const userId = req.user.id;
 
     if (!email || !name) {
       return res.status(400).json({ error: 'Email e nome são obrigatórios' });
