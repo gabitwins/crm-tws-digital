@@ -160,12 +160,20 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             <div className="flex items-center gap-3 pl-3 border-l border-white/20 dark:border-white/10">
               <div className="text-right">
                 <p className="text-sm font-medium text-white">{user?.name || user?.email || 'Usuario'}</p>
-                <p className="text-xs text-white/80">{user?.role === 'admin' ? 'Administrador' : 'Colaborador'}</p>
+                <p className="text-xs text-white/80">{user?.role === 'ADMIN' ? 'Administrador' : 'Colaborador'}</p>
               </div>
-              <div className="relative group">
+              <div className="relative group cursor-pointer" onClick={() => router.push('/dashboard/configuracoes')}>
                 <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full blur opacity-30 group-hover:opacity-50 transition-opacity"></div>
-                <div className="relative w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white font-semibold ring-2 ring-white/20">
-                  {(user?.name || user?.email || 'U').charAt(0).toUpperCase()}
+                <div className="relative w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white font-semibold ring-2 ring-white/20 overflow-hidden">
+                  {user?.avatar ? (
+                    <img 
+                      src={user.avatar.startsWith('http') ? user.avatar : `http://localhost:4000${user.avatar}`} 
+                      alt={user.name || 'Avatar'} 
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    (user?.name || user?.email || 'U').charAt(0).toUpperCase()
+                  )}
                 </div>
               </div>
             </div>

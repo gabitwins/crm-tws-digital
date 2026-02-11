@@ -123,6 +123,8 @@ model User {
   password    String
   role        UserRole
   avatar      String?
+  phone       String?
+  company     String?
   isActive    Boolean   @default(true)
   permissions Json?
   createdAt   DateTime  @default(now())

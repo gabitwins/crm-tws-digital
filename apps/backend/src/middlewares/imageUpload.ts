@@ -1,0 +1,40 @@
+import { Request } from 'express';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+
+const uploadDir = path.join(__dirname, '../../uploads/avatars');
+
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+  destination: (req: Request, file: Express.Multer.File, cb) => {
+    cb(null, uploadDir);
+  },
+  filename: (req: Request, file: Express.Multer.File, cb) => {
+    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1E9)}`;
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `avatar-${uniqueSuffix}${ext}`);
+  }
+});
+
+const fileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+  const allowedTypes = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
+  const ext = path.extname(file.originalname).toLowerCase();
+  
+  if (allowedTypes.includes(ext)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Apenas imagens (JPG, PNG, WEBP, GIF) são permitidas'));
+  }
+};
+
+export const imageUpload = multer({
+  storage,
+  fileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB
+  }
+});

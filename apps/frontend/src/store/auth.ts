@@ -13,6 +13,7 @@ interface AuthState {
   user: User | null;
   token: string | null;
   setAuth: (user: User, token: string) => void;
+  updateUser: (user: Partial<User>) => void;
   clearAuth: () => void;
 }
 
@@ -24,6 +25,11 @@ export const useAuthStore = create<AuthState>()(
       setAuth: (user, token) => {
         localStorage.setItem('token', token);
         set({ user, token });
+      },
+      updateUser: (updatedUser) => {
+        set((state) => ({
+          user: state.user ? { ...state.user, ...updatedUser } : null
+        }));
       },
       clearAuth: () => {
         localStorage.removeItem('token');

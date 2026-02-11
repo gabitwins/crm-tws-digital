@@ -1,20 +1,26 @@
 'use client';
 export const dynamic = 'force-dynamic';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { CollaboratorsSection } from '@/components/CollaboratorsSection';
 import { useTheme } from '@/contexts/ThemeContext';
-import { User, Bell, Shield, Palette, Globe, Database, Save, Eye, EyeOff, Check, X, Sun, Moon, Settings, Users } from 'lucide-react';
+import { useAuthStore } from '@/store/auth';
+import { api } from '@/lib/api';
+import { User, Bell, Shield, Palette, Globe, Database, Save, Eye, EyeOff, Check, X, Sun, Moon, Settings, Users, Camera, Upload } from 'lucide-react';
 
 export default function ConfiguracoesPage() {
   const { theme, toggleTheme } = useTheme();
+  const { user, updateUser } = useAuthStore();
   const [activeTab, setActiveTab] = useState('perfil');
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Estados para Perfil
-  const [name, setName] = useState('Admin');
-  const [email, setEmail] = useState('admin@nexo.com');
-  const [phone, setPhone] = useState('');
-  const [company, setCompany] = useState('');
+  const [name, setName] = useState(user?.name || '');
+  const [email, setEmail] = useState(user?.email || '');
+  const [phone, setPhone] = useState(user?.phone || '');
+  const [company, setCompany] = useState(user?.company || '');
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(user?.avatar || null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   
   // Estados para Notificações
   const [emailNotifications, setEmailNotifications] = useState(true);
@@ -36,23 +42,75 @@ export default function ConfiguracoesPage() {
   
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
+
+  useEffect(() => {
+    if (user) {
+      setName(user.name || '');
+      setEmail(user.email || '');
+      // Cast user to any because store type might not have phone/company yet but API returns it
+      const userData = user as any;
+      setPhone(userData.phone || '');
+      setCompany(userData.company || '');
+      setAvatarPreview(userData.avatar ? `http://localhost:4000${userData.avatar}` : null);
+    }
+  }, [user]);
   
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAvatarPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSave = async (section: string) => {
     setSaving(true);
     setSaveMessage('');
     
     try {
-      // Simular salvamento
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      setSaveMessage('✓ Configurações salvas com sucesso!');
+      if (section === 'perfil') {
+        // 1. Upload avatar if selected
+        let avatarUrl = user?.avatar;
+        if (selectedFile) {
+          const formData = new FormData();
+          formData.append('avatar', selectedFile);
+          const uploadRes = await api.post('/users/avatar', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          });
+          avatarUrl = uploadRes.data.avatar;
+        }
+
+        // 2. Update profile data
+        const profileRes = await api.put('/users/profile', {
+          name,
+          email,
+          phone,
+          company,
+          avatar: avatarUrl
+        });
+
+        updateUser(profileRes.data);
+        setSaveMessage('✓ Perfil atualizado com sucesso!');
+      } else {
+        // Simular salvamento para outras seções por enquanto
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        setSaveMessage('✓ Configurações salvas com sucesso!');
+      }
+      
       setTimeout(() => setSaveMessage(''), 3000);
-    } catch (error) {
-      setSaveMessage('✗ Erro ao salvar configurações');
+    } catch (error: any) {
+      console.error(error);
+      setSaveMessage(`✗ Erro ao salvar: ${error.response?.data?.error || error.message}`);
       setTimeout(() => setSaveMessage(''), 3000);
     } finally {
       setSaving(false);
     }
   };
+
 
   const tabs = [
     { id: 'perfil', label: 'Perfil', icon: User },
@@ -106,6 +164,52 @@ export default function ConfiguracoesPage() {
             {/* Tab Perfil */}
             {activeTab === 'perfil' && (
               <div className="space-y-6">
+                {/* Avatar Section */}
+                <div className="flex items-center gap-6 p-6 bg-gray-50 dark:bg-dark-700 rounded-xl">
+                  <div className="relative group">
+                    <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-200 dark:bg-dark-600 border-4 border-white dark:border-dark-800 shadow-md">
+                      {avatarPreview ? (
+                        <img 
+                          src={avatarPreview} 
+                          alt="Avatar" 
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-400">
+                          <User size={40} />
+                        </div>
+                      )}
+                    </div>
+                    <button 
+                      onClick={() => fileInputRef.current?.click()}
+                      className="absolute bottom-0 right-0 p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors shadow-lg"
+                      title="Alterar foto"
+                    >
+                      <Camera size={16} />
+                    </button>
+                    <input 
+                      type="file" 
+                      ref={fileInputRef} 
+                      onChange={handleFileChange} 
+                      accept="image/*" 
+                      className="hidden" 
+                    />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900 dark:text-white">Foto de Perfil</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                      PNG, JPG ou WEBP. Máx 5MB.
+                    </p>
+                    <button 
+                      onClick={() => fileInputRef.current?.click()}
+                      className="px-4 py-2 bg-white dark:bg-dark-600 border border-gray-300 dark:border-dark-500 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-dark-500 transition-colors flex items-center gap-2"
+                    >
+                      <Upload size={16} />
+                      Carregar Nova Foto
+                    </button>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">

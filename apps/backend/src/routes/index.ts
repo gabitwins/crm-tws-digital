@@ -15,6 +15,7 @@ import agentRoutes from './agent.routes';
 import setupAdminRoutes from './setup.routes';
 import integrationRoutes from './integration.routes';
 import collaboratorRoutes from './collaborator.routes';
+import userRoutes from './user.routes';
 import chatRoutes from './chat.routes';
 
 export function setupRoutes(app: Express): void {
@@ -26,6 +27,7 @@ export function setupRoutes(app: Express): void {
 
   apiRouter.use(authenticate);
 
+  apiRouter.use('/users', userRoutes);
   apiRouter.use('/leads', leadRoutes);
   apiRouter.use('/messages', messageRoutes);
   apiRouter.use('/sales', saleRoutes);
