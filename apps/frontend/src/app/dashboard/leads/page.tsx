@@ -41,9 +41,21 @@ export default function LeadsPage() {
     setLoading(true);
     try {
       const response = await api.get('/leads');
-      setLeads(response.data || []);
-    } catch (error) {
-      console.error('Erro ao carregar leads:', error);
+      console.log('Response leads:', response.data);
+      
+      // Lidar com diferentes formatos de resposta
+      let leadsData = [];
+      if (Array.isArray(response.data)) {
+        leadsData = response.data;
+      } else if (response.data?.leads && Array.isArray(response.data.leads)) {
+        leadsData = response.data.leads;
+      } else if (typeof response.data === 'object') {
+        leadsData = [response.data];
+      }
+      
+      setLeads(leadsData);
+    } catch (error: any) {
+      console.error('Erro ao carregar leads:', error?.response?.data || error?.message || error);
       setLeads([]);
     } finally {
       setLoading(false);

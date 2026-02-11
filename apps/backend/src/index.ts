@@ -31,6 +31,15 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Endpoint de teste para diagnosticar problemas
+app.get('/api/test', (req, res) => {
+  res.json({
+    message: 'API backend funcionando!',
+    token_received: !!req.headers.authorization,
+    timestamp: new Date().toISOString()
+  });
+});
+
 setupRoutes(app);
 
 app.use(notFound);

@@ -30,9 +30,21 @@ export default function TrafegoPage() {
     try {
       setLoading(true);
       const response = await api.get('/campaigns');
-      setCampaigns(response.data);
-    } catch (error) {
-      console.error('Erro ao carregar campanhas:', error);
+      console.log('Response campaigns:', response.data);
+      
+      // Lidar com diferentes formatos de resposta
+      let campaignsData = [];
+      if (Array.isArray(response.data)) {
+        campaignsData = response.data;
+      } else if (response.data?.campaigns && Array.isArray(response.data.campaigns)) {
+        campaignsData = response.data.campaigns;
+      } else if (typeof response.data === 'object' && response.data !== null) {
+        campaignsData = [response.data];
+      }
+      
+      setCampaigns(campaignsData);
+    } catch (error: any) {
+      console.error('Erro ao carregar campanhas:', error?.response?.data || error?.message || error);
       setCampaigns([]);
     } finally {
       setLoading(false);

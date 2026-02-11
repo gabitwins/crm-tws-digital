@@ -5,7 +5,10 @@ import { AppError } from '../middlewares/errorHandler';
 export class LeadController {
   async getAll(req: Request, res: Response, next: NextFunction) {
     try {
+      console.log('👤 Usuário autenticado:', req.user?.id);
+      
       const leads = await prisma.lead.findMany({
+        where: { userId: req.user?.id },
         include: {
           assignedAgent: {
             select: {
@@ -25,8 +28,10 @@ export class LeadController {
         }
       });
 
+      console.log('✅ Leads carregados:', leads.length);
       res.json(leads);
     } catch (error) {
+      console.error('❌ Erro ao carregar leads:', error);
       next(error);
     }
   }

@@ -8,6 +8,8 @@ const router = Router();
 // Metrics para o dashboard principal (ROI tráfego vs vendas)
 router.get('/metrics', authenticate, async (req: Request, res: Response) => {
   try {
+    console.log('📊 Carregando metrics para usuário:', req.user?.id);
+    
     const { startDate, endDate } = req.query;
     
     const dateFilter: any = {};
@@ -22,6 +24,7 @@ router.get('/metrics', authenticate, async (req: Request, res: Response) => {
 
     const vendas = await prisma.sale.findMany({
       where: {
+        userId: req.user?.id,
         purchaseDate: dateFilter,
         status: 'APPROVED'
       }
@@ -71,17 +74,21 @@ router.get('/creatives', authenticate, async (req: Request, res: Response) => {
 // Stats gerais
 router.get('/stats', authenticate, async (req: Request, res: Response) => {
   try {
-    // Contar leads ativos
+    // Contar leads ativos do usuário
     const leadsAtivos = await prisma.lead.count({
-      where: { isActive: true }
+      where: { 
+        userId: req.user?.id,
+        isActive: true 
+      }
     });
 
-    // Receita do mês atual
+    // Receita do mês atual do usuário
     const now = new Date();
     const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
     
     const vendas = await prisma.sale.findMany({
       where: {
+        userId: req.user?.id,
         purchaseDate: {
           gte: firstDay
         },
@@ -93,19 +100,25 @@ router.get('/stats', authenticate, async (req: Request, res: Response) => {
       return sum + Number(sale.netValue);
     }, 0);
 
-    // Taxa de conversão (vendas / leads)
-    const totalLeads = await prisma.lead.count();
+    // Taxa de conversão do usuário
+    const totalLeads = await prisma.lead.count({
+      where: { userId: req.user?.id }
+    });
     const totalVendas = await prisma.sale.count({
-      where: { status: 'APPROVED' }
+      where: { 
+        userId: req.user?.id,
+        status: 'APPROVED' 
+      }
     });
     const taxaConversao = totalLeads > 0 ? (totalVendas / totalLeads) * 100 : 0;
 
-    // Mensagens hoje
+    // Mensagens do usuário hoje
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
     const mensagensHoje = await prisma.message.count({
       where: {
+        lead: { userId: req.user?.id },
         sentAt: {
           gte: today
         }
