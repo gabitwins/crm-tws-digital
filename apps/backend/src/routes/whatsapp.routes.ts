@@ -25,12 +25,14 @@ router.get('/status', authenticate, async (req, res) => {
     const connected = baileysService.isConnected();
     const qrCode = baileysService.getQRCode();
     const connecting = baileysService.isConnecting();
+    const lastDisconnect = baileysService.getLastDisconnect();
 
     res.json({
       connected,
       connecting,
       qrCode: connected ? null : qrCode,
-      message: connected ? 'Conectado' : 'Desconectado'
+      message: connected ? 'Conectado' : 'Desconectado',
+      lastDisconnect
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });

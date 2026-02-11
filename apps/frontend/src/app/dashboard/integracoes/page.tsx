@@ -138,6 +138,7 @@ export default function Integracoes() {
   const [pollingQr, setPollingQr] = useState(false);
   const [connectionTimeout, setConnectionTimeout] = useState(0); // Contador de timeout
   const [connectionStartTime, setConnectionStartTime] = useState(0); // Timestamp do início
+  const [lastDisconnectInfo, setLastDisconnectInfo] = useState<any>(null);
 
   useEffect(() => {
     loadIntegrationsStatus();
@@ -222,11 +223,13 @@ export default function Integracoes() {
     const interval = setInterval(async () => {
       try {
         const status = await api.get('/integrations/whatsapp/status');
+        setLastDisconnectInfo(status.data?.lastDisconnect || null);
         if (status.data?.connected) {
           setQrCode(null);
           setPollingQr(false);
           setConnecting(false);
           setConnectionStartTime(0);
+          setLastDisconnectInfo(null);
           await loadIntegrationsStatus();
           alert('✅ WhatsApp conectado com sucesso!');
           setShowModal(false);
@@ -396,7 +399,7 @@ export default function Integracoes() {
                 Configurar {selectedIntegration.name}
               </h3>
 
-              {qrCode && selectedIntegration.id === 'whatsapp' ? (
+                {qrCode && selectedIntegration.id === 'whatsapp' ? (
                 <div className="text-center">
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
                     📱 <strong>Escaneie o QR Code com seu WhatsApp</strong>
@@ -426,6 +429,15 @@ export default function Integracoes() {
                       <li>Aponte a câmera para este QR Code</li>
                     </ol>
                   </div>
+                  {lastDisconnectInfo?.message && (
+                    <div className="mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg text-xs text-yellow-800 dark:text-yellow-300">
+                      <p className="font-semibold">⚠️ Último erro detectado</p>
+                      <p className="mt-1">{lastDisconnectInfo.message}</p>
+                      {lastDisconnectInfo.statusCode && (
+                        <p className="mt-1">Código: {lastDisconnectInfo.statusCode} ({lastDisconnectInfo.reason})</p>
+                      )}
+                    </div>
+                  )}
                   <button
                     onClick={() => {
                       setShowModal(false);
@@ -456,6 +468,15 @@ export default function Integracoes() {
                       <Loader className={`text-green-500 ${connecting ? 'animate-spin' : 'opacity-30'}`} size={48} />
                     </div>
                   </div>
+                  {lastDisconnectInfo?.message && (
+                    <div className="mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg text-xs text-yellow-800 dark:text-yellow-300 text-left">
+                      <p className="font-semibold">⚠️ Último erro detectado</p>
+                      <p className="mt-1">{lastDisconnectInfo.message}</p>
+                      {lastDisconnectInfo.statusCode && (
+                        <p className="mt-1">Código: {lastDisconnectInfo.statusCode} ({lastDisconnectInfo.reason})</p>
+                      )}
+                    </div>
+                  )}
                   <div className="mt-6 space-y-3">
                     <div className="flex gap-3">
                       <button

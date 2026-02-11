@@ -20,6 +20,9 @@ export class BaileysService {
   private qrCode: string | null = null;
   private connected: boolean = false;
   private connecting: boolean = false;
+  private lastDisconnectReason: string | null = null;
+  private lastDisconnectMessage: string | null = null;
+  private lastDisconnectStatusCode: number | null = null;
   private authDir: string = 'auth_info_baileys';
   private openAIService: OpenAIService;
   private queueService: QueueService;
@@ -47,6 +50,9 @@ export class BaileysService {
       this.connecting = true;
       this.connected = false;
       this.qrCode = null;
+      this.lastDisconnectReason = null;
+      this.lastDisconnectMessage = null;
+      this.lastDisconnectStatusCode = null;
       
       // TIMEOUT DE SEGURANÇA: Se após 90s ainda estiver "connecting", resetar
       const safetyTimeout = setTimeout(() => {
@@ -65,8 +71,14 @@ export class BaileysService {
       this.sock = makeWASocket({
         auth: state,
         version,
-        browser: ['CRM NEXO', 'Chrome', '10.0.0'],
-        markOnlineOnConnect: false,
+        browser: ['Ubuntu', 'Chrome', '20.0.0'],
+        markOnlineOnConnect: true,
+        printQRInTerminal: true,
+        connectTimeoutMs: 60000,
+        defaultQueryTimeoutMs: 60000,
+        keepAliveIntervalMs: 10000,
+        emitOwnEvents: true,
+        retryRequestDelayMs: 250
       });
 
       // keep-alive to reduce random connection drops
@@ -102,6 +114,9 @@ export class BaileysService {
         if (connection === 'close') {
           const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
           const errorMsg = (lastDisconnect?.error as any)?.message || '';
+          this.lastDisconnectStatusCode = statusCode || null;
+          this.lastDisconnectMessage = errorMsg || null;
+          this.lastDisconnectReason = DisconnectReason[statusCode as any] || 'UNKNOWN';
           
           logger.error('❌ Conexão fechada:', {
             statusCode,
@@ -137,6 +152,9 @@ export class BaileysService {
           this.connected = true;
           this.connecting = false;
           this.qrCode = null; // Limpar QR após conexão bem-sucedida
+          this.lastDisconnectReason = null;
+          this.lastDisconnectMessage = null;
+          this.lastDisconnectStatusCode = null;
           logger.info('✅ WhatsApp conectado com sucesso!');
         } else if (connection === 'connecting') {
           logger.info('🔄 Estabelecendo conexão...');
@@ -157,6 +175,8 @@ export class BaileysService {
       this.connecting = false;
       this.connected = false;
       this.qrCode = null;
+      this.lastDisconnectReason = 'ERROR';
+      this.lastDisconnectMessage = (error as any)?.message || 'Erro desconhecido';
       logger.error('❌ Erro fatal ao conectar WhatsApp:', error);
       throw error;
     }
@@ -273,6 +293,14 @@ export class BaileysService {
 
   isConnecting(): boolean {
     return this.connecting;
+  }
+
+  getLastDisconnect() {
+    return {
+      reason: this.lastDisconnectReason,
+      message: this.lastDisconnectMessage,
+      statusCode: this.lastDisconnectStatusCode
+    };
   }
 
   async disconnect(): Promise<void> {
