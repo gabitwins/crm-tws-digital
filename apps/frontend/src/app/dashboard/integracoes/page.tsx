@@ -136,10 +136,34 @@ export default function Integracoes() {
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
   const [pollingQr, setPollingQr] = useState(false);
+  const [connectionTimeout, setConnectionTimeout] = useState(0); // Contador de timeout
+  const [connectionStartTime, setConnectionStartTime] = useState(0); // Timestamp do início
 
   useEffect(() => {
     loadIntegrationsStatus();
   }, []);
+
+  // Timeout de segurança para conexão WhatsApp (60 segundos)
+  useEffect(() => {
+    if (!connecting || !connectionStartTime) return;
+
+    const timeoutDuration = 60000; // 60 segundos
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - connectionStartTime;
+      const remaining = Math.max(0, timeoutDuration - elapsed);
+      setConnectionTimeout(Math.ceil(remaining / 1000));
+
+      // Se passou do tempo limite, resetar
+      if (remaining === 0) {
+        setConnecting(false);
+        setPollingQr(false);
+        alert('⏱️ Timeout: A conexão demorou muito. Tente novamente ou verifique sua internet.');
+        setConnectionStartTime(0);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [connecting, connectionStartTime]);
 
   const loadIntegrationsStatus = async () => {
     try {
@@ -165,14 +189,15 @@ export default function Integracoes() {
         setShowModal(true);
         setConnecting(true);
         setQrCode(null);
+        setConnectionStartTime(Date.now()); // Iniciar contador
 
         // FORÇA LIMPEZA DA SESSÃO ANTERIOR PARA EVITAR ERRO DE DEVICE
         await api.post('/integrations/whatsapp/connect', { forceReset: true });
         setPollingQr(true);
       } catch (error) {
         alert('Erro ao conectar WhatsApp');
-      } finally {
         setConnecting(false);
+        setConnectionStartTime(0);
       }
     } else if (integration.requiresToken) {
       // Integrações que precisam de token
@@ -200,11 +225,16 @@ export default function Integracoes() {
         if (status.data?.connected) {
           setQrCode(null);
           setPollingQr(false);
+          setConnecting(false);
+          setConnectionStartTime(0);
           await loadIntegrationsStatus();
+          alert('✅ WhatsApp conectado com sucesso!');
+          setShowModal(false);
           return;
         }
         if (status.data?.qrCode) {
           setQrCode(status.data.qrCode);
+          setConnecting(false); // Para de mostrar "Gerando..." quando QR estiver pronto
         }
       } catch {}
     }, 1000);
@@ -368,21 +398,40 @@ export default function Integracoes() {
 
               {qrCode && selectedIntegration.id === 'whatsapp' ? (
                 <div className="text-center">
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                    Escaneie o QR Code com seu WhatsApp
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                    📱 <strong>Escaneie o QR Code com seu WhatsApp</strong>
                   </p>
-                  <div className="inline-block p-4 bg-white dark:bg-dark-700 rounded-lg">
+                  <p className="text-xs text-gray-500 dark:text-gray-500 mb-4">
+                    ✅ Funciona com <strong>WhatsApp normal</strong> e <strong>WhatsApp Business</strong>
+                  </p>
+                  <div className="inline-block p-4 bg-white dark:bg-dark-700 rounded-lg border-2 border-green-500">
                     <img
                       src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrCode)}`}
                       alt="QR Code"
                       className="w-64 h-64"
                     />
                   </div>
+                  {connectionTimeout > 0 && (
+                    <p className="text-xs text-orange-600 dark:text-orange-400 mt-2">
+                      ⏱️ Tempo restante: {connectionTimeout}s
+                    </p>
+                  )}
+                  <div className="mt-4 bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg text-xs text-left space-y-1">
+                    <p className="font-semibold text-blue-900 dark:text-blue-300">📋 Como escanear:</p>
+                    <ol className="list-decimal list-inside space-y-1 text-gray-700 dark:text-gray-400">
+                      <li>Abra o WhatsApp no celular</li>
+                      <li>Toque em <strong>⋮</strong> (Android) ou <strong>Ajustes</strong> (iPhone)</li>
+                      <li>Toque em <strong>Aparelhos conectados</strong></li>
+                      <li>Toque em <strong>Conectar um aparelho</strong></li>
+                      <li>Aponte a câmera para este QR Code</li>
+                    </ol>
+                  </div>
                   <button
                     onClick={() => {
                       setShowModal(false);
                       setQrCode(null);
                       setSelectedIntegration(null);
+                      setConnectionStartTime(0);
                     }}
                     className="mt-6 w-full px-4 py-2 bg-gray-200 dark:bg-dark-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-dark-600 transition-colors"
                   >
@@ -391,39 +440,50 @@ export default function Integracoes() {
                 </div>
               ) : selectedIntegration.id === 'whatsapp' ? (
                 <div className="text-center">
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                    {connecting ? 'Gerando QR Code...' : 'Clique em "Tentar novamente" para gerar o QR Code'}
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                    {connecting ? '⚙️ Gerando QR Code...' : '❌ Não foi possível gerar o QR Code'}
                   </p>
-                  <div className="inline-block p-4 bg-white dark:bg-dark-700 rounded-lg">
+                  {connecting && connectionTimeout > 0 && (
+                    <p className="text-xs text-orange-600 dark:text-orange-400 mb-3">
+                      ⏱️ Timeout em {connectionTimeout}s
+                    </p>
+                  )}
+                  <p className="text-xs text-gray-500 dark:text-gray-500 mb-4">
+                    ✅ Funciona com <strong>WhatsApp normal</strong> e <strong>WhatsApp Business</strong>
+                  </p>
+                  <div className="inline-block p-4 bg-white dark:bg-dark-700 rounded-lg border-2 border-gray-300 dark:border-dark-600">
                     <div className="w-64 h-64 flex items-center justify-center">
-                      <Loader className={`text-green-500 ${connecting ? 'animate-spin' : ''}`} size={48} />
+                      <Loader className={`text-green-500 ${connecting ? 'animate-spin' : 'opacity-30'}`} size={48} />
                     </div>
                   </div>
-                  <div className="mt-6 flex gap-3">
+                  <div className="mt-6 space-y-3">
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => {
+                          setShowModal(false);
+                          setQrCode(null);
+                          setSelectedIntegration(null);
+                          setConnectionStartTime(0);
+                        }}
+                        className="flex-1 px-4 py-2 bg-gray-200 dark:bg-dark-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-dark-600 transition-colors"
+                      >
+                        Fechar
+                      </button>
+                      <button
+                        onClick={() => handleConnect({ ...selectedIntegration })}
+                        disabled={connecting}
+                        className="flex-1 px-4 py-2 bg-green-500 hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+                      >
+                        Tentar novamente
+                      </button>
+                    </div>
                     <button
-                      onClick={() => {
-                        setShowModal(false);
-                        setQrCode(null);
-                        setSelectedIntegration(null);
-                      }}
-                      className="flex-1 px-4 py-2 bg-gray-200 dark:bg-dark-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-dark-600 transition-colors"
+                      onClick={handleWhatsAppReset}
+                      className="w-full px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors text-sm"
                     >
-                      Fechar
-                    </button>
-                    <button
-                      onClick={() => handleConnect({ ...selectedIntegration })}
-                      disabled={connecting}
-                      className="flex-1 px-4 py-2 bg-green-500 hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-                    >
-                      Tentar novamente
+                      🔄 Resetar WhatsApp (limpar sessão)
                     </button>
                   </div>
-                  <button
-                    onClick={handleWhatsAppReset}
-                    className="mt-3 w-full px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
-                  >
-                    Resetar WhatsApp (gerar novo QR)
-                  </button>
                 </div>
               ) : (
                 <div className="space-y-4">

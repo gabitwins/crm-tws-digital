@@ -31,16 +31,32 @@ export class BaileysService {
 
   async connect(forceReset: boolean = false): Promise<void> {
     try {
-      if (this.connecting || this.connected) return;
+      if (this.connecting || this.connected) {
+        logger.warn('⚠️ Já está conectado ou conectando. Ignorando nova tentativa.');
+        return;
+      }
       
       // FORÇA LIMPEZA PARA EVITAR SESSÕES CORROMPIDAS
       if (forceReset) {
         logger.info('🧹 Forçando limpeza de sessão anterior...');
         await this.cleanAuthOnly();
+        // Aguardar 2 segundos após limpar para garantir que arquivos foram deletados
+        await new Promise(r => setTimeout(r, 2000));
       }
       
       this.connecting = true;
+      this.connected = false;
       this.qrCode = null;
+      
+      // TIMEOUT DE SEGURANÇA: Se após 90s ainda estiver "connecting", resetar
+      const safetyTimeout = setTimeout(() => {
+        if (this.connecting && !this.connected) {
+          logger.error('🚨 TIMEOUT: Conexão travada por 90s. Resetando...');
+          this.connecting = false;
+          this.sock = null;
+          this.qrCode = null;
+        }
+      }, 90000); // 90 segundos
       const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
 
       const { version } = await fetchLatestBaileysVersion();
@@ -117,9 +133,13 @@ export class BaileysService {
             this.connecting = false;
           }
         } else if (connection === 'open') {
+          clearTimeout(safetyTimeout); // Limpar timeout de segurança
           this.connected = true;
           this.connecting = false;
+          this.qrCode = null; // Limpar QR após conexão bem-sucedida
           logger.info('✅ WhatsApp conectado com sucesso!');
+        } else if (connection === 'connecting') {
+          logger.info('🔄 Estabelecendo conexão...');
         }
       });
 
@@ -135,7 +155,9 @@ export class BaileysService {
 
     } catch (error) {
       this.connecting = false;
-      logger.error('Erro ao conectar WhatsApp:', error);
+      this.connected = false;
+      this.qrCode = null;
+      logger.error('❌ Erro fatal ao conectar WhatsApp:', error);
       throw error;
     }
   }
