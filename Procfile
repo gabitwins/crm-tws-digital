@@ -1,1 +1,1 @@
-web: cd apps/backend && npm run start
+web: npm run start --prefix apps/backend
