@@ -1,0 +1,11 @@
+[build]
+builder = "NIXPACKS"
+
+[build.nixpacksConfig]
+nixpkgs = "https://github.com/NixOS/nixpkgs/archive/nixpkgs-unstable.tar.gz"
+
+[build.nixpacksPlan.phases.setup]
+nixPkgs = ["nodejs-20_x"]
+
+[deploy]
+startCommand = "cd apps/frontend && npm start"

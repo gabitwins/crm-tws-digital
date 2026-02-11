@@ -1,0 +1,17 @@
+{
+  "name": "CRM TWS Digital Frontend",
+  "type": "web",
+  "env": "node",
+  "buildCommand": "cd apps/frontend && npm install && npm run build",
+  "startCommand": "cd apps/frontend && npm start",
+  "envVars": [
+    {
+      "key": "NEXT_PUBLIC_API_URL",
+      "value": "https://web-production-1d256.up.railway.app/api"
+    },
+    {
+      "key": "NODE_ENV",
+      "value": "production"
+    }
+  ]
+}

@@ -1,0 +1,644 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  AGENT
+  MARKETING
+  SUPPORT
+  FINANCIAL
+  VIEWER
+}
+
+enum LeadStatus {
+  lead
+  pre_venda
+  cliente
+  aluno_ativo
+  pos_venda
+  suporte
+  reembolso
+  inativo
+}
+
+enum QueueType {
+  PRE_VENDA
+  CHECKOUT
+  POS_VENDA
+  SUPORTE
+  RETENCAO
+  HUMANA
+}
+
+enum AgentType {
+  PRE_VENDA
+  POS_VENDA
+  SUPORTE
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum MessageStatus {
+  PENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+enum PaymentStatus {
+  PENDING
+  APPROVED
+  REFUNDED
+  CHARGEBACK
+  CANCELLED
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum CampaignStatus {
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum AdStatus {
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum PublicityStatus {
+  PENDENTE_BRIEF
+  CRIAR_ROTEIRO
+  GRAVAR
+  EDITAR
+  ENVIAR_EDITOR
+  APROVAR_EDICAO
+  CORRIGIR_EDICAO
+  CONCLUIDO
+  CANCELADO
+}
+
+enum PublicityPriority {
+  BAIXA
+  MEDIA
+  ALTA
+  URGENTE
+}
+
+enum PublicityPaymentStatus {
+  DEVIDO
+  PAGO_METADE
+  PAGO
+}
+
+model User {
+  id          String    @id @default(uuid())
+  email       String    @unique
+  name        String
+  password    String
+  role        UserRole
+  avatar      String?
+  isActive    Boolean   @default(true)
+  permissions Json?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  lastLoginAt DateTime?
+
+  assignedLeads Lead[]         @relation("AssignedAgent")
+  messages      Message[]
+  tickets       Ticket[]       @relation("TicketAgent")
+  activities    Activity[]
+  notes         Note[]
+  Integration   Integration[]
+  collaborator  Collaborator?  @relation("CollaboratorUser")
+  publicities   Publicity[]
+
+  @@map("users")
+}
+
+model Lead {
+  id           String     @id @default(uuid())
+  whatsappId   String?    @unique
+  name         String
+  phone        String     @unique
+  email        String?
+  status       LeadStatus @default(lead)
+  currentQueue QueueType?
+  currentAgent AgentType?
+
+  assignedAgentId String?
+  assignedAgent   User?   @relation("AssignedAgent", fields: [assignedAgentId], references: [id])
+
+  source          String?
+  firstMessage    DateTime?
+  lastInteraction DateTime?
+  isActive        Boolean   @default(true)
+  customFields    Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tags         LeadTag[]
+  messages     Message[]
+  sales        Sale[]
+  tickets      Ticket[]
+  activities   Activity[]
+  notes        Note[]
+  queueHistory QueueHistory[]
+
+  @@index([whatsappId])
+  @@index([phone])
+  @@index([status])
+  @@index([currentQueue])
+  @@map("leads")
+}
+
+model Tag {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  category    String
+  color       String?
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  leads LeadTag[]
+
+  @@index([category])
+  @@map("tags")
+}
+
+model LeadTag {
+  id        String   @id @default(uuid())
+  leadId    String
+  tagId     String
+  appliedAt DateTime @default(now())
+  appliedBy String?
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([leadId, tagId])
+  @@index([leadId])
+  @@index([tagId])
+  @@map("lead_tags")
+}
+
+model Message {
+  id          String           @id @default(uuid())
+  leadId      String
+  userId      String?
+  direction   MessageDirection
+  content     String
+  messageType String           @default("text")
+  status      MessageStatus    @default(PENDING)
+  whatsappId  String?          @unique
+  mediaUrl    String?
+  metadata    Json?
+  aiGenerated Boolean          @default(false)
+  agentType   AgentType?
+  sentAt      DateTime         @default(now())
+  deliveredAt DateTime?
+  readAt      DateTime?
+
+  lead Lead  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([leadId])
+  @@index([whatsappId])
+  @@index([sentAt])
+  @@map("messages")
+}
+
+model Product {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  price       Decimal  @db.Decimal(10, 2)
+  hotmartId   String?  @unique
+  kiwifyId    String?  @unique
+  isActive    Boolean  @default(true)
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  sales Sale[]
+
+  @@map("products")
+}
+
+model Sale {
+  id        String @id @default(uuid())
+  leadId    String
+  productId String
+
+  platform       String
+  platformSaleId String @unique
+
+  grossValue Decimal @db.Decimal(10, 2)
+  fees       Decimal @db.Decimal(10, 2)
+  netValue   Decimal @db.Decimal(10, 2)
+
+  installments Int           @default(1)
+  status       PaymentStatus
+
+  purchaseDate DateTime
+  approvalDate DateTime?
+  refundDate   DateTime?
+
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lead    Lead    @relation(fields: [leadId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+
+  @@index([leadId])
+  @@index([productId])
+  @@index([platform])
+  @@index([status])
+  @@index([purchaseDate])
+  @@map("sales")
+}
+
+model Ticket {
+  id      String  @id @default(uuid())
+  leadId  String
+  agentId String?
+
+  title       String
+  description String
+  status      TicketStatus   @default(OPEN)
+  priority    TicketPriority @default(MEDIUM)
+  category    String?
+
+  openedAt   DateTime  @default(now())
+  closedAt   DateTime?
+  resolvedAt DateTime?
+
+  metadata Json?
+
+  lead  Lead  @relation(fields: [leadId], references: [id])
+  agent User? @relation("TicketAgent", fields: [agentId], references: [id])
+
+  @@index([leadId])
+  @@index([agentId])
+  @@index([status])
+  @@index([priority])
+  @@map("tickets")
+}
+
+model QueueHistory {
+  id        String     @id @default(uuid())
+  leadId    String
+  queueType QueueType
+  agentType AgentType?
+  enteredAt DateTime   @default(now())
+  exitedAt  DateTime?
+  duration  Int?
+  metadata  Json?
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+  @@index([queueType])
+  @@map("queue_history")
+}
+
+model Activity {
+  id          String   @id @default(uuid())
+  leadId      String
+  userId      String?
+  type        String
+  description String
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  lead Lead  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([leadId])
+  @@index([type])
+  @@index([createdAt])
+  @@map("activities")
+}
+
+model Note {
+  id        String   @id @default(uuid())
+  leadId    String
+  userId    String
+  content   String
+  isPrivate Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([leadId])
+  @@map("notes")
+}
+
+model Campaign {
+  id         String         @id @default(uuid())
+  name       String
+  facebookId String         @unique
+  status     CampaignStatus
+  objective  String?
+
+  dailyBudget    Decimal? @db.Decimal(10, 2)
+  lifetimeBudget Decimal? @db.Decimal(10, 2)
+
+  spend       Decimal @default(0) @db.Decimal(10, 2)
+  impressions Int     @default(0)
+  clicks      Int     @default(0)
+  ctr         Decimal @default(0) @db.Decimal(10, 4)
+  cpc         Decimal @default(0) @db.Decimal(10, 2)
+  cpm         Decimal @default(0) @db.Decimal(10, 2)
+
+  revenue Decimal @default(0) @db.Decimal(10, 2)
+  roas    Decimal @default(0) @db.Decimal(10, 4)
+
+  startDate DateTime?
+  endDate   DateTime?
+
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  adSets AdSet[]
+
+  @@index([facebookId])
+  @@index([status])
+  @@map("campaigns")
+}
+
+model AdSet {
+  id         String   @id @default(uuid())
+  campaignId String
+  name       String
+  facebookId String   @unique
+  status     AdStatus
+
+  dailyBudget    Decimal? @db.Decimal(10, 2)
+  lifetimeBudget Decimal? @db.Decimal(10, 2)
+
+  spend       Decimal @default(0) @db.Decimal(10, 2)
+  impressions Int     @default(0)
+  clicks      Int     @default(0)
+
+  startDate DateTime?
+  endDate   DateTime?
+
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  ads      Ad[]
+
+  @@index([campaignId])
+  @@index([facebookId])
+  @@map("ad_sets")
+}
+
+model Ad {
+  id         String   @id @default(uuid())
+  adSetId    String
+  name       String
+  facebookId String   @unique
+  status     AdStatus
+
+  spend       Decimal @default(0) @db.Decimal(10, 2)
+  impressions Int     @default(0)
+  clicks      Int     @default(0)
+
+  creative  Json?
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  adSet AdSet @relation(fields: [adSetId], references: [id], onDelete: Cascade)
+
+  @@index([adSetId])
+  @@index([facebookId])
+  @@map("ads")
+}
+
+model Publicity {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Informações básicas
+  month       String // Format: YYYY-MM para agrupamento
+  name        String
+  contentType String // "video", "carrossel", "imagem", etc
+
+  // Pessoas envolvidas
+  editor String?
+
+  // Valores
+  negotiationUSD Decimal @default(0) @db.Decimal(10, 2)
+  negotiationBRL Decimal @default(0) @db.Decimal(10, 2)
+
+  // Status e prioridade
+  status          PublicityStatus        @default(PENDENTE_BRIEF)
+  priority        PublicityPriority      @default(MEDIA)
+  paymentStatus   PublicityPaymentStatus @default(DEVIDO)
+
+  // Datas importantes
+  scriptDeliveryDate DateTime? // Data de entrega do roteiro
+  videoDeliveryDate  DateTime? // Data de entrega do vídeo
+  publicationDate    DateTime? // Data de publicação do conteúdo
+
+  // Arquivos e conteúdo
+  pdfFile String? // URL ou path do arquivo PDF do brief
+  script  String? @db.Text // Roteiro em texto
+
+  // Observações
+  observation String? @db.Text
+
+  // Metadata
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([month])
+  @@index([status])
+  @@index([priority])
+  @@map("publicities")
+}
+
+model AIPrompt {
+  id        String    @id @default(uuid())
+  name      String    @unique
+  agentType AgentType
+  prompt    String
+  isActive  Boolean   @default(true)
+  version   Int       @default(1)
+  metadata  Json?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([agentType])
+  @@map("ai_prompts")
+}
+
+model KnowledgeBase {
+  id        String   @id @default(uuid())
+  title     String
+  content   String
+  category  String
+  tags      String[]
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category])
+  @@map("knowledge_base")
+}
+
+model SystemConfig {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  value       Json
+  description String?
+  updatedAt   DateTime @updatedAt
+
+  @@map("system_config")
+}
+
+model AgentConfig {
+  id                   String    @id @default(uuid())
+  userId               String
+  agentType            AgentType
+  name                 String
+  systemPrompt         String    @db.Text
+  personality          String?   @db.Text
+  tone                 String?
+  language             String    @default("pt-BR")
+  temperature          Float     @default(0.7)
+  maxTokens            Int       @default(500)
+  dosList              String[]
+  dontsList            String[]
+  exampleConversations Json?
+  knowledgeBase        String?   @db.Text
+  pdfFiles             Json?
+  isActive             Boolean   @default(true)
+  version              Int       @default(1)
+  createdBy            String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([agentType])
+  @@index([isActive])
+  @@map("agent_configs")
+}
+
+model TrainingFile {
+  id           String    @id @default(uuid())
+  agentType    AgentType
+  filename     String
+  originalName String
+  fileType     String
+  fileSize     Int
+  content      String    @db.Text
+  embeddings   Json?
+  processedAt  DateTime?
+  isProcessed  Boolean   @default(false)
+  uploadedBy   String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([agentType])
+  @@index([isProcessed])
+  @@map("training_files")
+}
+
+model Integration {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  type      String // whatsapp, instagram, hotmart, kiwify, facebook_ads
+  status    String   @default("disconnected") // connected, disconnected, error
+  config    Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, type])
+  @@map("integrations")
+}
+
+enum CollaboratorStatus {
+  PENDING
+  ACTIVE
+  INACTIVE
+}
+
+model Collaborator {
+  id        String              @id @default(uuid())
+  email     String              @unique
+  name      String
+  role      UserRole            @default(AGENT)
+  status    CollaboratorStatus  @default(PENDING)
+  invitedBy String
+  userId    String?             @unique
+  user      User?               @relation("CollaboratorUser", fields: [userId], references: [id])
+  
+  inviteToken    String?   @unique
+  inviteExpiry   DateTime?
+  joinedAt       DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  
+  sentMessages     InternalMessage[] @relation("SentMessages")
+  receivedMessages InternalMessage[] @relation("ReceivedMessages")
+  
+  @@map("collaborators")
+}
+
+model InternalMessage {
+  id         String   @id @default(uuid())
+  senderId   String
+  receiverId String
+  message    String   @db.Text
+  isRead     Boolean  @default(false)
+  readAt     DateTime?
+  createdAt  DateTime @default(now())
+  
+  sender   Collaborator @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver Collaborator @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([isRead])
+  @@map("internal_messages")
+}

@@ -1,0 +1,26 @@
+{
+  "name": "crm-tws-digital",
+  "version": "1.0.0",
+  "description": "CRM Empresarial Omnichannel com IA - Sistema Operacional do Negócio Digital",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "cd apps/backend && npm install && npx prisma generate && npm run build",
+    "start": "cd apps/backend && node dist/index.js",
+    "lint": "turbo run lint",
+    "clean": "turbo run clean",
+    "db:migrate": "cd apps/backend && npx prisma migrate deploy",
+    "db:seed": "cd apps/backend && npm run db:seed"
+  },
+  "devDependencies": {
+    "turbo": "^1.11.2"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}
