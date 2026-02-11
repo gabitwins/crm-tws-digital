@@ -24,7 +24,6 @@ router.get('/metrics', authenticate, async (req: Request, res: Response) => {
 
     const vendas = await prisma.sale.findMany({
       where: {
-        userId: req.user?.id,
         purchaseDate: dateFilter,
         status: 'APPROVED'
       }
@@ -74,21 +73,19 @@ router.get('/creatives', authenticate, async (req: Request, res: Response) => {
 // Stats gerais
 router.get('/stats', authenticate, async (req: Request, res: Response) => {
   try {
-    // Contar leads ativos do usuário
+    // Contar leads ativos (geral)
     const leadsAtivos = await prisma.lead.count({
       where: { 
-        userId: req.user?.id,
         isActive: true 
       }
     });
 
-    // Receita do mês atual do usuário
+    // Receita do mês atual (geral)
     const now = new Date();
     const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
     
     const vendas = await prisma.sale.findMany({
       where: {
-        userId: req.user?.id,
         purchaseDate: {
           gte: firstDay
         },
@@ -100,25 +97,21 @@ router.get('/stats', authenticate, async (req: Request, res: Response) => {
       return sum + Number(sale.netValue);
     }, 0);
 
-    // Taxa de conversão do usuário
-    const totalLeads = await prisma.lead.count({
-      where: { userId: req.user?.id }
-    });
+    // Taxa de conversão (geral)
+    const totalLeads = await prisma.lead.count();
     const totalVendas = await prisma.sale.count({
       where: { 
-        userId: req.user?.id,
         status: 'APPROVED' 
       }
     });
     const taxaConversao = totalLeads > 0 ? (totalVendas / totalLeads) * 100 : 0;
 
-    // Mensagens do usuário hoje
+    // Mensagens hoje (geral)
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
     const mensagensHoje = await prisma.message.count({
       where: {
-        lead: { userId: req.user?.id },
         sentAt: {
           gte: today
         }

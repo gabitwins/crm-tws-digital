@@ -8,7 +8,7 @@ export class LeadController {
       console.log('👤 Usuário autenticado:', req.user?.id);
       
       const leads = await prisma.lead.findMany({
-        where: { userId: req.user?.id },
+        // where: { userId: req.user?.id }, // REMOVIDO: Campo userId não existe em Lead
         include: {
           assignedAgent: {
             select: {

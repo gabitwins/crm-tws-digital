@@ -26,6 +26,8 @@ export class BaileysService {
   private authDir: string = 'auth_info_baileys';
   private openAIService: OpenAIService;
   private queueService: QueueService;
+  private reconnectAttempts: number = 0;
+  private maxReconnectAttempts: number = 3;
 
   constructor() {
     this.openAIService = new OpenAIService();
@@ -63,6 +65,10 @@ export class BaileysService {
           this.qrCode = null;
         }
       }, 90000); // 90 segundos
+
+      // GARANTIR QUE PASTA DE AUTH EXISTE ANTES DE INICIAR
+      await fs.mkdir(path.resolve(process.cwd(), this.authDir), { recursive: true });
+
       const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
 
       const { version } = await fetchLatestBaileysVersion();
@@ -127,13 +133,46 @@ export class BaileysService {
           // DETECTA ERRO DE DEVICE LIMIT OU SESSÃO CORROMPIDA
           if (
             statusCode === 428 || // Multidevice mismatch
-            statusCode === 515 || // Device limit
+            statusCode === 515 || // Stream error / restart required
             errorMsg.includes('Conflict') ||
-            errorMsg.includes('device')
+            errorMsg.includes('device') ||
+            errorMsg.includes('Stream Errored')
           ) {
-            logger.error('🚨 Erro de device/sessão detectado! Limpando e reconectando...');
-            await this.cleanAuthOnly();
+            logger.error('🚨 Erro 515/428 detectado! Limpando sessão...');
+            
+            this.reconnectAttempts++;
+            
+            if (this.reconnectAttempts > this.maxReconnectAttempts) {
+              logger.error(`❌ Limite de tentativas de reconexão atingido (${this.maxReconnectAttempts}). Pare e tente conectar manualmente.`);
+              this.sock = null;
+              this.connected = false;
+              this.connecting = false;
+              this.qrCode = null;
+              await this.cleanAuthOnly();
+              return;
+            }
+            
+            logger.info(`🔄 Tentativa ${this.reconnectAttempts}/${this.maxReconnectAttempts} de reconexão...`);
+            
+            // Fechar socket atual se existir
+            if (this.sock) {
+              try {
+                this.sock.end(undefined);
+              } catch (e) {
+                logger.error('Erro ao fechar socket:', e);
+              }
+            }
+            
+            this.sock = null;
+            this.connected = false;
             this.connecting = false;
+            this.qrCode = null;
+            
+            await this.cleanAuthOnly();
+            await new Promise(r => setTimeout(r, 5000)); // Aumentar delay para 5s
+            
+            logger.info('🔄 Reconectando após limpeza de sessão...');
+            await this.connect(false);
             return;
           }
 
@@ -142,7 +181,7 @@ export class BaileysService {
 
           if (shouldReconnect) {
             this.connecting = false;
-            await this.connect();
+            await this.connect(false);
           } else {
             this.connected = false;
             this.connecting = false;
@@ -152,6 +191,7 @@ export class BaileysService {
           this.connected = true;
           this.connecting = false;
           this.qrCode = null; // Limpar QR após conexão bem-sucedida
+          this.reconnectAttempts = 0; // Resetar contador de tentativas
           this.lastDisconnectReason = null;
           this.lastDisconnectMessage = null;
           this.lastDisconnectStatusCode = null;
@@ -328,7 +368,9 @@ export class BaileysService {
     try {
       const authPath = path.resolve(process.cwd(), this.authDir);
       await fs.rm(authPath, { recursive: true, force: true });
-      logger.info('🧹 auth_info_baileys removido, novo QR sera gerado');
+      // Recriar pasta imediatamente para evitar erro ENOENT se saveCreds for chamado logo em seguida
+      await fs.mkdir(authPath, { recursive: true });
+      logger.info('🧹 auth_info_baileys removido e recriado, novo QR sera gerado');
     } catch (error) {
       logger.error('Erro ao limpar auth_info_baileys:', error);
     }

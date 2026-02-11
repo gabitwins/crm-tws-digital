@@ -599,6 +599,19 @@ model Integration {
   @@map("integrations")
 }
 
+model WhatsAppConfig {
+  id                  String   @id @default("default")
+  phoneNumberId       String
+  accessToken         String
+  businessAccountId   String
+  webhookVerifyToken  String
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@map("whatsapp_configs")
+}
+
 enum CollaboratorStatus {
   PENDING
   ACTIVE

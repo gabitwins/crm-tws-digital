@@ -3,7 +3,8 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import DashboardLayout from '@/components/DashboardLayout';
-import { CheckCircle, XCircle, Loader, RefreshCw, ExternalLink, Link as LinkIcon } from 'lucide-react';
+import WhatsAppCloudConfig from '@/components/WhatsAppCloudConfig';
+import { CheckCircle, XCircle, Loader, RefreshCw, ExternalLink, Link as LinkIcon, Star } from 'lucide-react';
 import { api } from '@/lib/api';
 
 interface Integration {
@@ -15,17 +16,29 @@ interface Integration {
   status: 'connected' | 'disconnected';
   requiresAuth?: boolean;
   requiresToken?: boolean;
+  recommended?: boolean;
 }
 
 export default function Integracoes() {
   const [loading, setLoading] = useState(true);
+  const [showCloudConfig, setShowCloudConfig] = useState(false);
   const [integrations, setIntegrations] = useState<Integration[]>([
     {
-      id: 'whatsapp',
-      name: 'WhatsApp Business',
+      id: 'whatsapp-cloud',
+      name: 'WhatsApp Cloud API',
       icon: 'https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg',
-      description: 'Atenda leads via WhatsApp com agentes de IA',
+      description: 'API oficial da Meta - mais estável e sem QR code',
       color: 'from-green-500 to-green-600',
+      status: 'disconnected',
+      requiresAuth: false,
+      recommended: true
+    },
+    {
+      id: 'whatsapp',
+      name: 'WhatsApp Business (Baileys)',
+      icon: 'https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg',
+      description: 'Não oficial - pode apresentar instabilidade (legado)',
+      color: 'from-gray-500 to-gray-600',
       status: 'disconnected',
       requiresAuth: false
     },
@@ -183,6 +196,12 @@ export default function Integracoes() {
   };
 
   const handleConnect = async (integration: Integration) => {
+    // WhatsApp Cloud API - mostrar tela de configuração
+    if (integration.id === 'whatsapp-cloud') {
+      setShowCloudConfig(true);
+      return;
+    }
+
     if (integration.id === 'whatsapp') {
       // WhatsApp tem fluxo especial com QR Code
       try {
@@ -288,6 +307,18 @@ export default function Integracoes() {
 
   return (
     <DashboardLayout>
+      {/* Mostrar configuração do WhatsApp Cloud se solicitado */}
+      {showCloudConfig ? (
+        <div className="space-y-6">
+          <button
+            onClick={() => setShowCloudConfig(false)}
+            className="mb-4 px-4 py-2 bg-gray-200 dark:bg-dark-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-dark-600 transition-colors"
+          >
+            ← Voltar para Integrações
+          </button>
+          <WhatsAppCloudConfig />
+        </div>
+      ) : (
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -323,6 +354,14 @@ export default function Integracoes() {
                   <XCircle size={20} className="text-gray-400" />
                 )}
               </div>
+
+              {/* Badge Recomendado */}
+              {integration.recommended && (
+                <div className="absolute top-4 left-4 bg-yellow-500 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1">
+                  <Star size={12} fill="currentColor" />
+                  Recomendado
+                </div>
+              )}
 
               {/* Ícone */}
               <div className="w-20 h-20 rounded-xl bg-white dark:bg-dark-700 flex items-center justify-center mb-4 mx-auto p-4 border border-gray-200 dark:border-dark-600">
@@ -545,6 +584,7 @@ export default function Integracoes() {
           </div>
         )}
       </div>
+      )}
     </DashboardLayout>
   );
 }

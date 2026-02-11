@@ -15,6 +15,7 @@ type AgentType = 'PRE_VENDA' | 'POS_VENDA' | 'SUPORTE';
 interface AgentConfig {
   id?: string;
   agentType: AgentType;
+  agentFunction?: string;
   name: string;
   systemPrompt: string;
   personality: string;
@@ -51,20 +52,21 @@ export default function AgentesPage() {
     { type: 'SUPORTE' as AgentType, name: 'Suporte', icon: '🛟', color: 'from-purple-500 to-purple-600', description: 'Dúvidas técnicas e operacionais' }
   ];
 
-  // Lista expandida de funções para o select do formulário
-  const agentFunctions = [
-    { value: 'PRE_VENDA', label: 'Pré-Venda / Qualificação de Leads' },
-    { value: 'VENDAS', label: 'Vendas Consultivas' },
-    { value: 'POS_VENDA', label: 'Pós-Venda / Onboarding' },
-    { value: 'REMARKETING', label: 'Remarketing / Reativação' },
-    { value: 'SUPORTE', label: 'Suporte Técnico' },
-    { value: 'ATENDIMENTO', label: 'Atendimento ao Cliente' },
-    { value: 'RETENCAO', label: 'Retenção de Clientes' },
-    { value: 'UPSELL', label: 'Upsell / Cross-sell' },
-    { value: 'COBRANCA', label: 'Cobrança / Financeiro' },
-    { value: 'AGENDAMENTO', label: 'Agendamento / Marcação' },
-    { value: 'PESQUISA', label: 'Pesquisa / Feedback' },
-    { value: 'EDUCACAO', label: 'Educação / Treinamento' }
+  // Lista expandida de funções para o select do formulário (salva em agentFunction)
+  // agentType continua sendo uma das 3 categorias do sistema (enum do Prisma)
+  const agentFunctions: Array<{ value: string; label: string; mapToType: AgentType }> = [
+    { value: 'PRE_VENDA', label: 'Pré-Venda / Qualificação de Leads', mapToType: 'PRE_VENDA' },
+    { value: 'VENDAS', label: 'Vendas Consultivas', mapToType: 'PRE_VENDA' },
+    { value: 'POS_VENDA', label: 'Pós-Venda / Onboarding', mapToType: 'POS_VENDA' },
+    { value: 'REMARKETING', label: 'Remarketing / Reativação', mapToType: 'POS_VENDA' },
+    { value: 'RETENCAO', label: 'Retenção de Clientes', mapToType: 'POS_VENDA' },
+    { value: 'UPSELL', label: 'Upsell / Cross-sell', mapToType: 'POS_VENDA' },
+    { value: 'COBRANCA', label: 'Cobrança / Financeiro', mapToType: 'POS_VENDA' },
+    { value: 'SUPORTE', label: 'Suporte Técnico', mapToType: 'SUPORTE' },
+    { value: 'ATENDIMENTO', label: 'Atendimento ao Cliente', mapToType: 'SUPORTE' },
+    { value: 'AGENDAMENTO', label: 'Agendamento / Marcação', mapToType: 'SUPORTE' },
+    { value: 'PESQUISA', label: 'Pesquisa / Feedback', mapToType: 'SUPORTE' },
+    { value: 'EDUCACAO', label: 'Educação / Treinamento', mapToType: 'SUPORTE' }
   ];
 
   const agentTemplates = [
@@ -178,13 +180,17 @@ export default function AgentesPage() {
     try {
       setLoading(true);
       const response = await api.get(`/training/agents/config/${selectedAgent}`);
-      setConfig(response.data);
+      setConfig({
+        ...response.data,
+        agentFunction: response.data?.agentFunction || response.data?.agentType
+      });
       setView('form');
     } catch (error) {
       console.error('Erro ao carregar configuração:', error);
       // Criar configuração padrão em caso de erro
       setConfig({
         agentType: selectedAgent,
+        agentFunction: selectedAgent,
         name: agents.find(a => a.type === selectedAgent)?.name || 'Agente',
         systemPrompt: '',
         personality: '',
@@ -206,6 +212,7 @@ export default function AgentesPage() {
   const useTemplate = (template: any) => {
     setConfig({
       agentType: template.type,
+      agentFunction: template.type,
       name: template.name,
       systemPrompt: template.prompt,
       personality: template.personality,
@@ -226,6 +233,7 @@ export default function AgentesPage() {
     // Vai direto para o formulário, sem passar pela tela de seleção
     setConfig({
       agentType: 'PRE_VENDA', // Valor padrão
+      agentFunction: 'PRE_VENDA',
       name: '',
       systemPrompt: '',
       personality: '',
@@ -370,14 +378,16 @@ export default function AgentesPage() {
       const formData = new FormData();
       formData.append('file', file);
 
-      await api.post(`/training/agents/upload/${selectedAgent}`, formData, {
+      const agentTypeToUpload = config?.agentType || selectedAgent;
+      await api.post(`/training/agents/upload/${agentTypeToUpload}`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
       alert('Arquivo enviado e processado com sucesso!');
       loadAgentConfig();
-    } catch (error) {
-      alert('Erro ao fazer upload do arquivo');
+    } catch (error: any) {
+      console.error('Erro upload:', error);
+      alert(`Erro ao fazer upload do arquivo: ${error.response?.data?.error || error.message}`);
     } finally {
       setUploading(false);
     }
@@ -824,8 +834,17 @@ export default function AgentesPage() {
                 Função do Agente *
               </label>
               <select
-                value={config.agentType}
-                onChange={(e) => setConfig({ ...config, agentType: e.target.value as AgentType })}
+                value={config.agentFunction || config.agentType}
+                onChange={(e) => {
+                  const selectedFunc = agentFunctions.find(f => f.value === e.target.value);
+                  if (selectedFunc) {
+                    setConfig({ 
+                      ...config, 
+                      agentFunction: selectedFunc.value,
+                      agentType: selectedFunc.mapToType 
+                    });
+                  }
+                }}
                 className="w-full px-4 py-3 bg-white dark:bg-dark-700 border border-gray-300 dark:border-dark-600 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
               >

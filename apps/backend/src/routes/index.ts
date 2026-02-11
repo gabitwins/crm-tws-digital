@@ -11,6 +11,7 @@ import campaignRoutes from './campaign.routes';
 import publicityRoutes from './publicity.routes';
 import queueRoutes from './queue.routes';
 import whatsappRoutes from './whatsapp.routes';
+import whatsappCloudRoutes from './whatsapp-cloud.routes';
 import agentRoutes from './agent.routes';
 import setupAdminRoutes from './setup.routes';
 import integrationRoutes from './integration.routes';
@@ -24,6 +25,9 @@ export function setupRoutes(app: Express): void {
   apiRouter.use('/auth', authRoutes);
   apiRouter.use('/webhooks', webhookRoutes);
   apiRouter.use('/setup', setupAdminRoutes);
+  
+  // WhatsApp webhook público (sem autenticação)
+  apiRouter.use('/whatsapp', whatsappCloudRoutes);
 
   apiRouter.use(authenticate);
 
