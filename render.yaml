@@ -1,0 +1,15 @@
+version: 2
+services:
+  - type: web
+    name: crm-backend
+    env: node
+    region: ohio
+    plan: free
+    buildCommand: cd apps/backend && npm install && npx prisma generate && npm run build
+    startCommand: cd apps/backend && npm run start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000

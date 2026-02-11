@@ -18,10 +18,12 @@ import integrationRoutes from './integration.routes';
 import collaboratorRoutes from './collaborator.routes';
 import userRoutes from './user.routes';
 import chatRoutes from './chat.routes';
+import healthRoutes from './health.routes';
 
 export function setupRoutes(app: Express): void {
   const apiRouter = Router();
 
+  apiRouter.use('/health', healthRoutes);
   apiRouter.use('/auth', authRoutes);
   apiRouter.use('/webhooks', webhookRoutes);
   apiRouter.use('/setup', setupAdminRoutes);
