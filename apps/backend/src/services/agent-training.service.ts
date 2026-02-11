@@ -79,7 +79,8 @@ export class AgentTrainingService {
         const created = await prisma.agentConfig.create({
           data: {
             ...data,
-            version: 1
+            version: 1,
+            userId: 'system'  // Configuração padrão do sistema
           }
         });
         return created;

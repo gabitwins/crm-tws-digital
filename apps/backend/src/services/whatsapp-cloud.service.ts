@@ -188,8 +188,7 @@ export class WhatsAppCloudService {
           content: messageText,
           direction: 'INBOUND',
           status: 'DELIVERED',
-          sentAt: new Date(parseInt(timestamp) * 1000),
-          externalId: messageId
+          sentAt: new Date(parseInt(timestamp) * 1000)
         }
       });
 
