@@ -51,7 +51,9 @@ export default function ConfiguracoesPage() {
       const userData = user as any;
       setPhone(userData.phone || '');
       setCompany(userData.company || '');
-      setAvatarPreview(userData.avatar ? `http://localhost:4000${userData.avatar}` : null);
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
+      const baseUrl = apiUrl.replace('/api', '');
+      setAvatarPreview(userData.avatar ? `${baseUrl}${userData.avatar}` : null);
     }
   }, [user]);
   

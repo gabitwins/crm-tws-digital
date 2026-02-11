@@ -167,7 +167,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 <div className="relative w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white font-semibold ring-2 ring-white/20 overflow-hidden">
                   {user?.avatar ? (
                     <img 
-                      src={user.avatar.startsWith('http') ? user.avatar : `http://localhost:4000${user.avatar}`} 
+                      src={user.avatar.startsWith('http') ? user.avatar : (() => {
+                        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
+                        const baseUrl = apiUrl.replace('/api', '');
+                        return `${baseUrl}${user.avatar}`;
+                      })()} 
                       alt={user.name || 'Avatar'} 
                       className="w-full h-full object-cover"
                     />
