@@ -31,6 +31,37 @@ export function setupRoutes(app: Express): void {
   // WhatsApp webhook público (sem autenticação)
   apiRouter.use('/whatsapp', whatsappCloudRoutes);
 
+  // Seed endpoint público (permite bypass de auth no middleware)
+  apiRouter.post('/seed-init', async (req, res) => {
+    try {
+      const { token } = req.body;
+      if (token !== 'seed_secret_key_12345') {
+        return res.status(401).json({ status: 'error', message: 'Invalid token' });
+      }
+      
+      const bcrypt = require('bcryptjs');
+      const { prisma } = await import('../config/database');
+      
+      const hashedPassword = await bcrypt.hash('admin123', 10);
+      
+      const admin = await prisma.user.upsert({
+        where: { email: 'admin@nexo.com' },
+        update: {},
+        create: {
+          email: 'admin@nexo.com',
+          password: hashedPassword,
+          name: 'Administrador',
+          role: 'ADMIN',
+          isActive: true
+        }
+      });
+      
+      res.json({ status: 'success', message: 'Seed executed', user: admin.email });
+    } catch (error: any) {
+      res.status(500).json({ status: 'error', message: error.message });
+    }
+  });
+
   apiRouter.use(authenticate);
 
   apiRouter.use('/users', userRoutes);
