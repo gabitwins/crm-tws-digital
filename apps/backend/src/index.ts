@@ -38,6 +38,32 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Endpoint público de seed - SEM prefixo /api
+app.post('/auth/seed', async (req, res) => {
+  try {
+    const bcrypt = require('bcryptjs');
+    const { prisma } = await import('./config/database');
+    
+    const hashedPassword = await bcrypt.hash('admin123', 10);
+    
+    const admin = await prisma.user.upsert({
+      where: { email: 'admin@nexo.com' },
+      update: { password: hashedPassword },
+      create: {
+        email: 'admin@nexo.com',
+        password: hashedPassword,
+        name: 'Administrador',
+        role: 'ADMIN',
+        isActive: true
+      }
+    });
+    
+    res.json({ status: 'success', message: 'Admin criado', email: admin.email });
+  } catch (error: any) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
 // Endpoint de teste para diagnosticar problemas
 app.get('/api/test', (req, res) => {
   res.json({
