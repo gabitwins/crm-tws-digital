@@ -14,6 +14,7 @@ import { OpenAIService } from './openai.service';
 import { QueueService } from './queue.service';
 import fs from 'fs/promises';
 import path from 'path';
+import { getIO } from '../socket';
 
 export class BaileysService {
   private sock: WASocket | null = null;
@@ -115,6 +116,7 @@ export class BaileysService {
           this.qrCode = qr;
           logger.info('📱 Novo QR Code gerado');
           qrcode.generate(qr, { small: true });
+          try { getIO().emit('qr_code', { qr }); } catch (e) {}
         }
 
         if (connection === 'close') {
@@ -196,6 +198,7 @@ export class BaileysService {
           this.lastDisconnectMessage = null;
           this.lastDisconnectStatusCode = null;
           logger.info('✅ WhatsApp conectado com sucesso!');
+          try { getIO().emit('connection_update', { status: 'connected' }); } catch (e) {}
         } else if (connection === 'connecting') {
           logger.info('🔄 Estabelecendo conexão...');
         }
@@ -268,7 +271,7 @@ export class BaileysService {
         logger.info(`✨ Novo lead criado: ${lead.name} (${lead.phone})`);
       }
 
-      await prisma.message.create({
+      const messageData = await prisma.message.create({
         data: {
           leadId: lead.id,
           content: messageText,
@@ -277,6 +280,12 @@ export class BaileysService {
           sentAt: new Date()
         }
       });
+
+      try {
+        getIO().emit('new_message', messageData);
+      } catch (error) {
+        logger.warn('Socket not initialized, skipping new_message event');
+      }
 
       const agentType = this.queueService.getAgentTypeByQueue(lead.currentQueue || 'PRE_VENDA');
       const aiResponse = await this.openAIService.generateResponse(
@@ -287,7 +296,7 @@ export class BaileysService {
 
       await this.sendMessage(from, aiResponse);
 
-      await prisma.message.create({
+      const aiMessageData = await prisma.message.create({
         data: {
           leadId: lead.id,
           content: aiResponse,
@@ -298,6 +307,12 @@ export class BaileysService {
           agentType: agentType as any
         }
       });
+
+      try {
+        getIO().emit('new_message', aiMessageData);
+      } catch (error) {
+        logger.warn('Socket not initialized, skipping new_message event');
+      }
 
       await this.queueService.analyzeAndMoveQueue(lead, messageText, aiResponse);
 

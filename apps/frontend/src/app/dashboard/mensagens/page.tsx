@@ -11,6 +11,7 @@ import {
 import { api } from '@/lib/api';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useSocket } from '@/hooks/useSocket';
 
 
 export const revalidate = 0;
@@ -76,10 +77,36 @@ export default function MensagensPage() {
   const [availableTags] = useState(['VIP', 'Interesse Alto', 'Follow-up', 'Urgente', 'Promoção']);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  const socket = useSocket();
+
+  useEffect(() => {
+    if (!socket) return;
+
+    socket.on('new_message', (newItem: any) => {
+      if (selectedLead && newItem.leadId === selectedLead.id) {
+        setMessages((prev) => {
+            if (prev.find(m => m.id === newItem.id)) return prev;
+            return [...prev, newItem];
+        });
+        scrollToBottom();
+      }
+      loadLeads();
+    });
+
+    socket.on('new_lead', () => {
+      loadLeads();
+    });
+
+    return () => {
+      socket.off('new_message');
+      socket.off('new_lead');
+    };
+  }, [socket, selectedLead]);
 
   useEffect(() => {
     loadLeads();
-    const interval = setInterval(loadLeads, 10000); // Atualizar a cada 10s
+    const interval = setInterval(loadLeads, 30000); // Polling reduzido para 30s como fallback
     return () => clearInterval(interval);
   }, []);
 

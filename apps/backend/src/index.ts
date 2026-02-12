@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import path from 'path';
+import http from 'http';
 import { errorHandler } from './middlewares/errorHandler';
 import { notFound } from './middlewares/notFound';
 import { setupRoutes } from './routes';
@@ -10,21 +11,26 @@ import { initializeServices } from './services';
 import { logger } from './utils/logger';
 import { connectDatabase } from './config/database';
 import { initializeQueues } from './queues';
+import { initializeSocket } from './socket';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 4000;
+const httpServer = http.createServer(app);
 
 app.use(helmet());
-app.use(cors({
+
+const corsOptions = {
   origin: [
     process.env.FRONTEND_URL || 'http://localhost:3000',
     'https://frontend-pi-eight-36.vercel.app',
     'https://frontend-oow71kvng-gabitwins-projects.vercel.app'
   ],
   credentials: true
-}));
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -59,7 +65,10 @@ async function startServer() {
     await initializeServices();
     logger.info('✅ Services initialized');
 
-    app.listen(PORT, () => {
+    initializeSocket(httpServer, corsOptions);
+    logger.info('✅ Socket.io initialized');
+
+    httpServer.listen(PORT, () => {
       logger.info(`🚀 Server running on port ${PORT}`);
       logger.info(`📍 Environment: ${process.env.NODE_ENV}`);
     });
