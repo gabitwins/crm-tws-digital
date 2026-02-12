@@ -22,8 +22,10 @@ const httpServer = http.createServer(app);
 app.use(helmet());
 
 const corsOptions = {
-  origin: '*', // Liberar acesso total para resolver bloqueio do Vercel
-  credentials: true
+  origin: true,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 };
 
 app.use(cors(corsOptions));
