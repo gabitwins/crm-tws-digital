@@ -90,6 +90,29 @@ async function startServer() {
     await connectDatabase();
     logger.info('✅ Database connected');
 
+    // Auto seed se variável de ambiente estiver ativa
+    if (process.env.AUTO_SEED === 'true') {
+      try {
+        const bcrypt = require('bcryptjs');
+        const { prisma } = await import('./config/database');
+        const hashedPassword = await bcrypt.hash('admin123', 10);
+        await prisma.user.upsert({
+          where: { email: 'admin@nexo.com' },
+          update: {},
+          create: {
+            email: 'admin@nexo.com',
+            password: hashedPassword,
+            name: 'Administrador',
+            role: 'ADMIN',
+            isActive: true
+          }
+        });
+        logger.info('🌱 Auto seed executado: admin@nexo.com criado');
+      } catch (error) {
+        logger.error('❌ Erro ao fazer auto seed:', error);
+      }
+    }
+
     // await initializeQueues();
     // logger.info('✅ Queues initialized');
 
