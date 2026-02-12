@@ -22,11 +22,7 @@ const httpServer = http.createServer(app);
 app.use(helmet());
 
 const corsOptions = {
-  origin: [
-    process.env.FRONTEND_URL || 'http://localhost:3000',
-    'https://frontend-pi-eight-36.vercel.app',
-    'https://frontend-oow71kvng-gabitwins-projects.vercel.app'
-  ],
+  origin: '*', // Liberar acesso total para resolver bloqueio do Vercel
   credentials: true
 };
 
