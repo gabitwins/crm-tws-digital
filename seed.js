@@ -6,7 +6,7 @@ const data = JSON.stringify({
 
 const options = {
   hostname: 'web-production-1d256.up.railway.app',
-  path: '/api/auth/seed',
+  path: '/seed',
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
