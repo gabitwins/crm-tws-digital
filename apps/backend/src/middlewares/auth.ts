@@ -26,11 +26,6 @@ export const authenticate = async (
   res: Response,
   next: NextFunction
 ) => {
-  // Skip auth para rotas públicas
-  if (req.path === '/seed-init') {
-    return next();
-  }
-
   try {
     const authHeader = req.headers.authorization;
 
