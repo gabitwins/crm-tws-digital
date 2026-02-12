@@ -4,22 +4,6 @@ import { authenticate } from '../middlewares/auth';
 
 const router = Router();
 
-router.post('/connect', authenticate, async (req, res) => {
-  try {
-    // SEMPRE FORÇA RESET PARA EVITAR SESSÕES CORROMPIDAS
-    const forceReset = req.body.forceReset !== false; // default true
-    
-    await baileysService.connect(forceReset);
-    return res.json({
-      status: 'starting',
-      message: forceReset ? 'Limpando sessão anterior e iniciando nova conexão...' : 'Iniciando conexao com WhatsApp...'
-    });
-
-  } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Erro ao conectar WhatsApp' });
-  }
-});
-
 router.get('/status', authenticate, async (req, res) => {
   try {
     const connected = baileysService.isConnected();
@@ -31,11 +15,36 @@ router.get('/status', authenticate, async (req, res) => {
       connected,
       connecting,
       qrCode: connected ? null : qrCode,
-      message: connected ? 'Conectado' : 'Desconectado',
+      message: connected ? 'Conectado' : connecting ? 'Conectando...' : 'Desconectado',
       lastDisconnect
     });
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    console.error('❌ /status error:', error);
+    res.status(500).json({ 
+      status: 'error', 
+      message: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+router.post('/connect', authenticate, async (req, res) => {
+  try {
+    const forceReset = req.body.forceReset !== false;
+    
+    await baileysService.connect(forceReset);
+    return res.json({
+      status: 'starting',
+      message: forceReset ? 'Limpando sessão anterior e iniciando nova conexão...' : 'Iniciando conexão com WhatsApp...'
+    });
+
+  } catch (error: any) {
+    console.error('❌ /connect error:', error);
+    res.status(500).json({ 
+      status: 'error', 
+      message: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 
