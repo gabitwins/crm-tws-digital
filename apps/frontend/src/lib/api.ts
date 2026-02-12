@@ -1,7 +1,12 @@
 import axios from 'axios';
 
+// URL do backend - prioridade: variável env > URL hardcoded > localhost
+const API_URL = process.env.NEXT_PUBLIC_API_URL 
+  || 'https://web-production-1d256.up.railway.app/api'
+  || 'http://localhost:4000/api';
+
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api',
+  baseURL: API_URL,
 });
 
 api.interceptors.request.use((config) => {
