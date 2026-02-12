@@ -1,11 +1,11 @@
 {
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
-    "builder": "nixpacks"
+    "builder": "dockerfile",
+    "context": "apps/backend"
   },
   "deploy": {
     "numReplicas": 1,
-    "startCommand": "cd apps/backend && npm run start",
     "restartPolicyMaxRetries": 5
   }
 }
