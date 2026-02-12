@@ -6,8 +6,8 @@ WORKDIR /app
 COPY package*.json ./
 COPY prisma ./prisma/
 
-# Instalar dependências
-RUN npm ci --only=production
+# Instalar TODAS as dependências (incluindo devDependencies para prisma)
+RUN npm ci
 
 # Copiar código fonte
 COPY . .
@@ -24,5 +24,5 @@ ENV NODE_ENV=production
 
 EXPOSE 3000
 
-# Comando de inicialização
-CMD ["node", "dist/index.js"]
+# Comando que roda migrations + seed + servidor
+CMD npx prisma migrate deploy && node prisma/seed.js && node dist/index.js
