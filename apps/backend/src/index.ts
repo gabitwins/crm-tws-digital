@@ -104,6 +104,33 @@ app.post('/api/seed-init', async (req, res) => {
   }
 });
 
+app.get('/api/debug/baileys', async (req, res) => {
+  try {
+    const { default: baileysService } = await import('./services/baileys.service');
+    const connected = baileysService.isConnected();
+    const connecting = baileysService.isConnecting();
+    const qrCode = baileysService.getQRCode();
+    const lastDisconnect = baileysService.getLastDisconnect();
+
+    res.json({
+      baileys: {
+        connected,
+        connecting,
+        qrCode: qrCode ? 'EXISTS' : null,
+        lastDisconnect
+      },
+      message: 'Baileys status retrieved successfully'
+    });
+  } catch (error: any) {
+    console.error('DEBUG BAILEYS ERROR:', error);
+    res.status(500).json({
+      error: error.message,
+      stack: error.stack,
+      baileys_import_error: true
+    });
+  }
+});
+
 setupRoutes(app);
 
 app.use(notFound);
