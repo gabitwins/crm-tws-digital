@@ -126,4 +126,27 @@ router.get('/check-admin', async (req: Request, res: Response) => {
   }
 });
 
+router.post('/create-admin-nexo', async (req: Request, res: Response) => {
+  try {
+    const hashedPassword = await bcrypt.hash('admin123', 10);
+    
+    await prisma.$executeRawUnsafe(`
+      INSERT INTO users (email, password, name, role, "isActive") 
+      VALUES ('admin@nexo.com', '${hashedPassword}', 'Admin NEXO', 'ADMIN', true)
+      ON CONFLICT (email) DO NOTHING;
+    `);
+
+    res.json({ 
+      status: 'success', 
+      message: 'Admin NEXO criado/verificado',
+      email: 'admin@nexo.com'
+    });
+  } catch (error: any) {
+    res.status(500).json({ 
+      status: 'error', 
+      message: error.message 
+    });
+  }
+});
+
 export default router;
